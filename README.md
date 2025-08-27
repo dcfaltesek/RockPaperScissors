@@ -106,7 +106,7 @@ What this looks like graphically (code from above):
 
 Faceting can be helpful. Look at the player 1, rock - you see that the blue triangles are all on Scissors, thus player 2 went scissors, and was smashed by the red circles of rock. Paper was not played.
 
-![There are only two players...](images/RPS faceted.png)
+![](images/RPS faceted.png)
 
 ## Works Cited
 
