@@ -75,4 +75,46 @@ if (A1play == 3L && A2play == 2L) {
   A2$B <- A2$B - L
 }
 
+#ACCOMODATION FUNCTION - per COOK et al - winners win and losers copy at same rate
+#loss functions are OMITTED - you can add them back to drive faster convergence 
+L <- .2
+W <- .1
+
+#rock paper
+if (A1play == 1L && A2play == 2L) {
+  A1$B <- A1$B + W
+  A2$B <- A2$B + W
+}
+
+#rock scissors
+if (A1play == 1L && A2play == 3L) {
+  A1$A <- A1$A + W
+  A2$A <- A2$A + W
+}
+
+#paper rock
+if (A1play == 3L && A2play == 1L) {
+  A1$B <- A1$B + W
+  A2$B <- A2$B + W
+}
+
+#paper scissors
+if (A1play == 2L && A2play == 3L) {
+  A1$B <- A1$B - L
+  A2$C <- A2$C + W
+}
+
+#scissors rock
+if (A1play == 3L && A2play == 1L) {
+  A1$A <- A1$A + W
+  A2$A <- A2$A + W
+}
+
+#scissors paper
+if (A1play == 3L && A2play == 2L) {
+  A1$C <- A1$C + W
+  A2$C <- A2$C + W
+}
+
+
 
