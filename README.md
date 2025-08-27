@@ -102,11 +102,13 @@ What are the false starts? In some cases the stochastic process throws a non-pla
 
 What this looks like graphically (code from above):
 
-![](images/RPS markdown image.png)
+![RPS markdown image](images/RPS%20markdown%20image.png)
+
 
 Faceting can be helpful. Look at the player 1, rock - you see that the blue triangles are all on Scissors, thus player 2 went scissors, and was smashed by the red circles of rock. Paper was not played.
 
-![](images/RPS faceted.png)
+![RPS faceted](images/RPS%20faceted.png)
+
 
 ## Works Cited
 
