@@ -64,9 +64,49 @@ And one might graph that outcome
 ```{r}
 library(ggplot2)
 library(dplyr)
+library(tidyr)
 
-outcome %>% ggplot(aes(A1play, A2play, colour =z))+geom_jitter()
+#pivot for ease of graphing
+outcomeB <- outcome %>%
+  mutate(game = row_number()) %>%
+  pivot_longer(
+    cols = c(A1play, A2play), 
+    names_to = "player",
+    values_to = "play"
+  )
+
+#here is our GGPLOT
+ggplot(outcomeB, aes(x = game, y = play, color = z, shape = player)) +
+  geom_jitter()
+  scale_y_continuous(breaks = 1:3, labels = c("rock","paper","scissors")) +
+  labs(x = "Game", y = "Play", color = "Player", shape = "Player") +
+  theme_minimal()
+
 ```
+
+Proof of concept for the base model comes with these lovely results:
+
+| Outcome                                  | Count |
+|------------------------------------------|-------|
+| Draw                                     | 230   |
+| False Start                              | 11    |
+| Paper over Rock (player 1 wins)          | 114   |
+| Rock over Scissors (player 1 wins)       | 127   |
+| Scissors over Paper (player 1 wins)      | 79    |
+| Rock covered by Paper (player 2 wins)    | 181   |
+| Scissors smashed by rock (player 2 wins) | 53    |
+| Paper is cut by paper (player 2 wins)    | 116   |
+| Total                                    | 1001  |
+
+What are the false starts? In some cases the stochastic process throws a non-playable integer (moderate clamping is used).
+
+What this looks like graphically (code from above):
+
+![](images/RPS markdown image.png)
+
+Faceting can be helpful. Look at the player 1, rock - you see that the blue triangles are all on Scissors, thus player 2 went scissors, and was smashed by the red circles of rock. Paper was not played.
+
+![There are only two players...](images/RPS faceted.png)
 
 ## Works Cited
 
