@@ -104,11 +104,155 @@ What this looks like graphically (code from above):
 
 ![RPS markdown image](images/RPS%20markdown%20image.png)
 
-
 Faceting can be helpful. Look at the player 1, rock - you see that the blue triangles are all on Scissors, thus player 2 went scissors, and was smashed by the red circles of rock. Paper was not played.
 
 ![RPS faceted](images/RPS%20faceted.png)
 
+## RPS with an LLM
+
+First major step is to initialize your link to a locally running LLM. In this case I am using LM studio and an open version of chatGPT. Notice you can pass a system prompt. For our code today, we will be using an initalizer prompt.
+
+```{r}
+library(ellmer)
+Sys.setenv(OPENAI_BASE_URL = "http://127.0.0.1:1234/v1")
+Sys.setenv(OPENAI_API_KEY = "not-needed")
+chat <- chat_openai(
+  model = "lmstudio-community/Mistral-7B-Instruct",
+  system_prompt = "Be realistic, like how a normal person reasons.")
+chat$chat("hell0")
+  )
+
+```
+
+The response from the system: Hey there! Did you just type “hell0” or was that a typo for “hello”? Let me know how I can help you today. At this point enjoy your Dr. Frankenstein moment.
+
+```{r}
+
+chat$chat("do you know how to play rock paper scissors")
+  )
+
+```
+
+Absolutely—here’s the quick rundown:
+
+1.  **Players** – Two people (or you can even play against a computer or yourself in practice).
+2.  **The “hand signs”**
+    -   **Rock** – a closed fist.\
+    -   **Paper** – an open hand, palm out.\
+    -   **Scissors** – a fist with the index and middle fingers extended to form a V.
+3.  **How it goes**
+    -   On a count of “one‑two‑three, shoot!” each player simultaneously shows one of the three signs.\
+4.  **Winning rules**
+    -   Rock crushes scissors (rock wins).\
+    -   Scissors cuts paper (scissors win).\
+    -   Paper covers rock (paper wins).\
+    -   If both players show the same sign it’s a tie and you usually play again to break the tie.
+5.  **Why we play it** – It’s a quick, fair way to make a decision when you’re stuck or just want a simple game.
+
+Optional: Some folks try to read patterns in their opponent’s choices or mix up their own moves randomly to stay unpredictable. But at its core, it’s all about those three signs and the classic “rock beats scissors” logic!
+
+Excellent - how the most important thing in developing our code is to stage the interaction so that our LLM can send back a variable that is easily understood by our central loop, an integer which corresponds to the play.
+
+```{r}
+chat$chat("for this version of rock paper scissors you will be sent a number, which coresponds to the value 1 rock 2 paper 3 scissors, you need to send back an integer with your best play 1 rock 2 paper 3 scissors")
+
+chat$chat("1")
+
+```
+
+The system replies "2" which I take as proof of concept. Now we can run our initial model which loops to the LLM. The key is to clean the return data, in this case as.numeric does the trick.
+
+```{r}
+library(dplyr)
+chat$chat("for this version of rock paper scissors you will be sent a number, which coresponds to the value 1 rock 2 paper 3 scissors, you need to send back an integer with your best play 1 rock 2 paper 3 scissors, you are player 2")
+A1<-data.frame(A=.7, B=.33, C=.1, H=.5)
+A2<-data.frame(A=.33, B=.33, C=.33, H=.5)
+t=0
+outcome<-data.frame(A1play = 0, A2play =0, z = "draw")
+while(t<10){
+  #initialize plays
+  a <- 1
+  b <- 2
+  c <- 3
+  #player1
+  weighted_value <- a * A1$A + b * A1$B + c * A1$C
+  random_value <- rnorm(1, mean = weighted_value, sd = 1) # sd controls spread
+  A1play<-round(random_value)
+  A1play
+  A1play <- if_else(A1play == 0, 1L, A1play)
+  A1play <- if_else(A1play == 4, 3L, A1play)
+  A1play <- abs(A1play)
+  
+  #player2
+A2play<-chat$chat("your turn")
+  A2play<-as.numeric(A2play)
+  #conditon 1 is draw
+  #condition 2 is rock paper, condition 3 is rock scissors, 4 is paper rock, 5 is paper scissors
+  #6 is scissors rock, 7 is scissors paper
+  z<-if_else(A1play == A2play, "draw", if_else(A1play == 1 & A2play == 2, "player 2, paper", 
+                                               if_else(A1play ==1 & A2play == 3, "player 1, rock", if_else(A1play ==2 & A2play == 1, "player 1, paper", 
+                                                                                                           if_else(A1play ==2 & A2play ==3, "player 2, scissors", 
+                                                                                                                   if_else(A1play == 3 & A2play ==1, "player 2, rock",
+                                                                                                                           
+                                                                                                                           if_else(A1play == 3 & A2play ==2, "player 1, scissors", if_else(A1play == 0 | A2play ==0, "false start", "false start"))))))))
+  new_row<-data.frame(A1play, A2play, z)
+  
+  outcome<-add_row(outcome, new_row)
+  print(new_row)
+  t<-t+1
+}
+
+outcome %>% group_by(z) %>% count()
+```
+
+The challenge with this model is that the more sophisticated the instructions passed to the LLM the higher likelihood it throws back an NA as you will be more likely to hit the barrier of the context window. It can be extremely frustrating as you work on these models as after just a few turns many LLMs pick up the nasty trait of yammering on. You will be lucky to have four of ten games play effectively. It is also possible your LLM will just freak out and refuse to play unless it knows what happened last time. Here is code to handle that:
+
+```{r}
+library(dplyr)
+chat$chat("for this version of rock paper scissors you will be sent a number, which coresponds to the value 1 rock 2 paper 3 scissors, you need to send back an integer with your best play 1 rock 2 paper 3 scissors, you are player 2, do no extra chit-chat, integers ONLY on your replies")
+A1<-data.frame(A=.7, B=.33, C=.1, H=.5)
+t=0
+outcome<-data.frame(A1play = 0, A2play =0, z = "draw")
+while(t<10){
+  #initialize plays
+  a <- 1
+  b <- 2
+  c <- 3
+  #player1
+  weighted_value <- a * A1$A + b * A1$B + c * A1$C
+  random_value <- rnorm(1, mean = weighted_value, sd = 1) # sd controls spread
+  A1play<-round(random_value)
+  A1play
+  A1play <- if_else(A1play == 0, 1L, A1play)
+  A1play <- if_else(A1play == 4, 3L, A1play)
+  A1play <- abs(A1play)
+  
+  #player2
+  #we are pasting in the results from last round and then asking for the new integer
+A2play<-chat$chat(paste("the last round was", new_row, "what do you want to do this round"))
+  A2play<-as.numeric(A2play)
+  #conditon 1 is draw
+  #condition 2 is rock paper, condition 3 is rock scissors, 4 is paper rock, 5 is paper scissors
+  #6 is scissors rock, 7 is scissors paper
+  z<-if_else(A1play == A2play, "draw", if_else(A1play == 1 & A2play == 2, "player 2, paper", 
+                                               if_else(A1play ==1 & A2play == 3, "player 1, rock", if_else(A1play ==2 & A2play == 1, "player 1, paper", 
+                                                                                                           if_else(A1play ==2 & A2play ==3, "player 2, scissors", 
+                                                                                                                   if_else(A1play == 3 & A2play ==1, "player 2, rock",
+                                                                                                                           
+                                                                                                                           if_else(A1play == 3 & A2play ==2, "player 1, scissors", if_else(A1play == 0 | A2play ==0, "false start", "false start"))))))))
+  chat$chat("prepare to hear what happened last time")
+  #this is key - you need to pass the text of what happeend last time back to the agent
+  #z is the result of the last game
+  chat$chat(z)
+  new_row<-data.frame(A1play, A2play, z)
+  
+  outcome<-add_row(outcome, new_row)
+  print(new_row)
+  t<-t+1
+}
+
+outcome %>% group_by(z) %>% count()
+```
 
 ## Works Cited
 
