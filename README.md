@@ -254,6 +254,90 @@ A2play<-chat$chat(paste("the last round was", new_row, "what do you want to do t
 outcome %>% group_by(z) %>% count()
 ```
 
+### That is very annoying, how do I fix it?
+
+Great question - the key is getting away from LLMs which have been salted with a personality. The best solution is to switch to Mistral.
+
+```{r}
+chat <- chat_openai(
+  model = "mistralai/devstral-small-2505",
+  system_prompt = "Be realistic, like how a normal person reasons."
+)
+```
+
+This little switch took us from getting bogged on unnecessary personality to a compelling simulation:
+
+|   | static simulation player | dynamic LLM player (mistral) |   |
+|:---|:---|:---|:---|
+| **1** | 0 | 0 | draw |
+| **2** | 3 | 2 | player 1, scissors |
+| **3** | 1 | 2 | player 2, paper |
+| **4** | 1 | 3 | player 1, rock |
+| **5** | 3 | 2 | player 1, scissors |
+| **6** | 1 | 2 | player 2, paper |
+| **7** | 1 | 3 | player 1, rock |
+| **8** | 2 | 3 | player 2, scissors |
+| **9** | 3 | 1 | player 2, rock |
+| **10** | 2 | 1 | player 1, paper |
+| **11** | 1 | 3 | player 1, rock |
+
+If you really like to party you can have mistral explain why it did what it did...
+
+```{r}
+library(dplyr)
+chat$chat("for this version of rock paper scissors you will be sent a number, which coresponds to the value 1 rock 2 paper 3 scissors, you need to send back an integer with your best play 1 rock 2 paper 3 scissors, you are player 2, do no extra chit-chat, your reply must include an INTEGER then a semicolon then an explanation of why you did what you did")
+A1<-data.frame(A=.7, B=.33, C=.1, H=.5)
+t=0
+outcome<-data.frame(A1play = 0, A2play =0, z = "draw")
+while(t<10){
+  #initialize plays
+  a <- 1
+  b <- 2
+  c <- 3
+  #player1
+  weighted_value <- a * A1$A + b * A1$B + c * A1$C
+  random_value <- rnorm(1, mean = weighted_value, sd = 1) # sd controls spread
+  A1play<-round(random_value)
+  A1play
+  A1play <- if_else(A1play == 0, 1L, A1play)
+  A1play <- if_else(A1play == 4, 3L, A1play)
+  A1play <- abs(A1play)
+  
+  #player2
+  #we are pasting in the results from last round and then asking for the new integer
+A2play<-chat$chat(paste("the last round was", new_row, "what do you want to do this round,"))
+library(stringr)
+splitty<-str_split(A2play, ";")  
+library(reshape2)
+splitsville<-melt(splitty)
+A2play<-tidyrA2play<-as.numeric(splitsville$value[1])
+print(splitsville)
+  #conditon 1 is draw
+  #condition 2 is rock paper, condition 3 is rock scissors, 4 is paper rock, 5 is paper scissors
+  #6 is scissors rock, 7 is scissors paper
+  z<-if_else(A1play == A2play, "draw", if_else(A1play == 1 & A2play == 2, "player 2, paper", 
+                                               if_else(A1play ==1 & A2play == 3, "player 1, rock", if_else(A1play ==2 & A2play == 1, "player 1, paper", 
+                                                                                                           if_else(A1play ==2 & A2play ==3, "player 2, scissors", 
+                                                                                                                   if_else(A1play == 3 & A2play ==1, "player 2, rock",
+                                                                                                                           
+                                                                                                                           if_else(A1play == 3 & A2play ==2, "player 1, scissors", if_else(A1play == 0 | A2play ==0, "false start", "false start"))))))))
+  chat$chat("prepare to hear what happened last time")
+  #this is key - you need to pass the text of what happeend last time back to the agent
+  #z is the result of the last game
+  chat$chat(z)
+  new_row<-data.frame(A1play, A2play, z)
+  
+  outcome<-add_row(outcome, new_row)
+  print(new_row)
+  t<-t+1
+}
+
+outcome %>% group_by(z) %>% count()
+
+```
+
+Mistral will start to let you in on the reasoning, I have that accumulate in the console, but it could just as easily be saved for later use.
+
 ## Works Cited
 
 Cook, Richard, Geoffrey Bird, Gabriele Lünser, Steffen Huck, and Cecilia Heyes. “Automatic Imitation in a Strategic Context: Players of Rock–Paper–Scissors Imitate Opponents’ Gestures†.” *Proceedings of the Royal Society B: Biological Sciences* 279, no. 1729 (2011): 780–86. <https://doi.org/10.1098/rspb.2011.1024>.
